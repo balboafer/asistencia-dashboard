@@ -82,7 +82,9 @@ export default function App() {
       .catch(() => flash('Error', 'err'));
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadGrupos(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === 'admin') { loadGrupos(); loadTodos(); } }, [tab]);
 
   const gNombre = (id) => grupos.find(g => g.id === id)?.nombre || ('Grupo ' + id);
