@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const s = {
-  app: { fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: 16 },
+  app: { fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16 },
   tabs: { display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid #eee', paddingBottom: 8 },
-  tab: { padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#555' },
-  tabActive: { padding: '8px 20px', border: 'none', background: '#2563eb', cursor: 'pointer', fontSize: 16, color: '#fff', fontWeight: 'bold', borderRadius: 6 },
+  tab: { padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, color: '#555' },
+  tabActive: { padding: '8px 20px', border: 'none', background: '#2563eb', cursor: 'pointer', fontSize: 15, color: '#fff', fontWeight: 'bold', borderRadius: 6 },
   card: { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 16 },
   h2: { margin: '0 0 12px 0', fontSize: 18, color: '#1e293b' },
   h3: { margin: '0 0 10px 0', fontSize: 15, color: '#334155' },
@@ -26,8 +26,11 @@ const s = {
   lbl: { fontSize: 12, color: '#64748b', display: 'block', marginBottom: 2 },
   sel: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, background: '#fff' },
   tag: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#dbeafe', color: '#1d4ed8' },
+  tagGreen: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#dcfce7', color: '#166534', marginRight: 4, marginBottom: 2 },
+  tagRed: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fee2e2', color: '#991b1b', marginRight: 4, marginBottom: 2 },
   ok: { padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14, background: '#dcfce7', color: '#166534' },
   err: { padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14, background: '#fee2e2', color: '#991b1b' },
+  pct: (p) => ({ display: 'inline-block', width: '100%', maxWidth: 80, height: 8, borderRadius: 4, background: '#e2e8f0', position: 'relative', overflow: 'hidden' }),
 };
 
 export default function App() {
@@ -41,14 +44,26 @@ export default function App() {
   const [fg, setFg] = useState({ nombre: '', hora_inicio: '', hora_fin: '' });
   const [fa, setFa] = useState({ nombre: '', edad: '', grupo_id: '', telefono_padre: '' });
   const [edit, setEdit] = useState(null);
+  const [hGrupo, setHGrupo] = useState('');
+  const [hDias, setHDias] = useState('30');
+  const [hData, setHData] = useState([]);
+  const [hExpand, setHExpand] = useState({});
+  const [hLoading, setHLoading] = useState(false);
 
   const flash = (text, type) => { setMsg({ text, type }); setTimeout(() => setMsg(null), 3000); };
-
   const api = (path, opts) => fetch(API_URL + path, opts).then(r => r.json());
 
   const loadGrupos = () => api('/grupos').then(setGrupos).catch(() => flash('Error cargando grupos', 'err'));
   const loadAlumnos = (id) => { setLoading(true); api('/alumnos/grupo/' + id).then(d => { setAlumnos(d); setGrupoId(id); }).catch(() => flash('Error', 'err')).finally(() => setLoading(false)); };
   const loadTodos = () => api('/alumnos').then(setTodos).catch(() => flash('Error', 'err'));
+  const loadHistorial = () => {
+    if (!hGrupo) return flash('Selecciona un grupo', 'err');
+    setHLoading(true);
+    api('/asistencia/historial/grupo/' + hGrupo + '?dias=' + hDias)
+      .then(d => { setHData(d); setHExpand({}); })
+      .catch(() => flash('Error cargando historial', 'err'))
+      .finally(() => setHLoading(false));
+  };
 
   const marcar = (alumnoId, presente) => api('/asistencia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alumno_id: alumnoId, grupo_id: grupoId, presente }) }).then(() => loadAlumnos(grupoId)).catch(() => flash('Error', 'err'));
 
@@ -82,6 +97,8 @@ export default function App() {
       .catch(() => flash('Error', 'err'));
   };
 
+  const toggleExpand = (fecha) => setHExpand(prev => ({ ...prev, [fecha]: !prev[fecha] }));
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadGrupos(); }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,11 +108,12 @@ export default function App() {
 
   return (
     <div style={s.app}>
-      <h1 style={{ color: '#1e293b' }}>Asistencia Algorithmics</h1>
+      <h1 style={{ color: '#1e293b', margin: '0 0 16px 0' }}>Asistencia Algorithmics</h1>
       {msg && <div style={msg.type === 'ok' ? s.ok : s.err}>{msg.text}</div>}
       <div style={s.tabs}>
         <button style={tab === 'asistencia' ? s.tabActive : s.tab} onClick={() => setTab('asistencia')}>Asistencia</button>
         <button style={tab === 'admin' ? s.tabActive : s.tab} onClick={() => setTab('admin')}>Administrar</button>
+        <button style={tab === 'historial' ? s.tabActive : s.tab} onClick={() => setTab('historial')}>Historial</button>
       </div>
 
       {tab === 'asistencia' && (
@@ -155,7 +173,6 @@ export default function App() {
               </tbody>
             </table>
           </div>
-
           <div style={s.card}>
             <h2 style={s.h2}>Alumnos</h2>
             <h3 style={s.h3}>Dar de alta</h3>
@@ -180,16 +197,9 @@ export default function App() {
                       <>
                         <td style={s.td}><input style={{ ...s.input, width: 140 }} value={edit.nombre} onChange={e => setEdit({ ...edit, nombre: e.target.value })} /></td>
                         <td style={s.td}><input style={s.inputSm} type='number' value={edit.edad} onChange={e => setEdit({ ...edit, edad: e.target.value })} /></td>
-                        <td style={s.td}>
-                          <select style={s.sel} value={edit.grupo_id} onChange={e => setEdit({ ...edit, grupo_id: e.target.value })}>
-                            {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-                          </select>
-                        </td>
+                        <td style={s.td}><select style={s.sel} value={edit.grupo_id} onChange={e => setEdit({ ...edit, grupo_id: e.target.value })}>{grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}</select></td>
                         <td style={s.td}><input style={{ ...s.input, width: 120 }} value={edit.telefono_padre || ''} onChange={e => setEdit({ ...edit, telefono_padre: e.target.value })} /></td>
-                        <td style={s.td}>
-                          <button style={s.btnGreen} onClick={guardar}>Guardar</button>
-                          <button style={{ ...s.btnGray, marginLeft: 6 }} onClick={() => setEdit(null)}>Cancelar</button>
-                        </td>
+                        <td style={s.td}><button style={s.btnGreen} onClick={guardar}>Guardar</button><button style={{ ...s.btnGray, marginLeft: 6 }} onClick={() => setEdit(null)}>Cancelar</button></td>
                       </>
                     ) : (
                       <>
@@ -197,10 +207,7 @@ export default function App() {
                         <td style={s.td}>{a.edad}</td>
                         <td style={s.td}><span style={s.tag}>{gNombre(a.grupo_id)}</span></td>
                         <td style={s.td}>{a.telefono_padre || '-'}</td>
-                        <td style={s.td}>
-                          <button style={s.btnOrange} onClick={() => setEdit({ ...a })}>Editar</button>
-                          <button style={{ ...s.btnRed, marginLeft: 6 }} onClick={() => borrarAlumno(a.id)}>Dar de baja</button>
-                        </td>
+                        <td style={s.td}><button style={s.btnOrange} onClick={() => setEdit({ ...a })}>Editar</button><button style={{ ...s.btnRed, marginLeft: 6 }} onClick={() => borrarAlumno(a.id)}>Dar de baja</button></td>
                       </>
                     )}
                   </tr>
@@ -208,6 +215,64 @@ export default function App() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === 'historial' && (
+        <div>
+          <div style={s.card}>
+            <h2 style={s.h2}>Historial de asistencia</h2>
+            <div style={s.row}>
+              <div><label style={s.lbl}>Grupo</label>
+                <select style={s.sel} value={hGrupo} onChange={e => { setHGrupo(e.target.value); setHData([]); }}>
+                  <option value=''>Seleccionar...</option>
+                  {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                </select>
+              </div>
+              <div><label style={s.lbl}>Ultimos (dias)</label>
+                <select style={{ ...s.sel, width: 90 }} value={hDias} onChange={e => setHDias(e.target.value)}>
+                  <option value='7'>7</option>
+                  <option value='14'>14</option>
+                  <option value='30'>30</option>
+                  <option value='60'>60</option>
+                  <option value='90'>90</option>
+                </select>
+              </div>
+              <button style={s.btnBlue} onClick={loadHistorial}>Ver historial</button>
+            </div>
+          </div>
+          {hLoading && <p style={{ color: '#64748b' }}>Cargando...</p>}
+          {!hLoading && hData.length === 0 && hGrupo && <p style={{ color: '#94a3b8' }}>Sin registros en este periodo.</p>}
+          {hData.map(row => {
+            const total = row.presentes.length + row.ausentes.length;
+            const pct = total ? Math.round((row.presentes.length / total) * 100) : 0;
+            const pctColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+            return (
+              <div key={row.fecha} style={{ ...s.card, marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }} onClick={() => toggleExpand(row.fecha)}>
+                  <span style={{ fontWeight: 'bold', color: '#1e293b', minWidth: 100 }}>{row.fecha}</span>
+                  <span style={{ color: '#16a34a' }}>{row.presentes.length} presentes</span>
+                  <span style={{ color: '#dc2626' }}>{row.ausentes.length} ausentes</span>
+                  <span style={{ fontWeight: 'bold', color: pctColor }}>{pct}%</span>
+                  <span style={{ color: '#94a3b8', fontSize: 12 }}>{hExpand[row.fecha] ? 'ocultar' : 'ver detalle'}</span>
+                </div>
+                {hExpand[row.fecha] && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}>
+                    <div style={{ marginBottom: 6 }}>
+                      <strong style={{ fontSize: 13, color: '#16a34a' }}>Presentes: </strong>
+                      {row.presentes.map(n => <span key={n} style={s.tagGreen}>{n}</span>)}
+                      {row.presentes.length === 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}>ninguno</span>}
+                    </div>
+                    <div>
+                      <strong style={{ fontSize: 13, color: '#dc2626' }}>Ausentes: </strong>
+                      {row.ausentes.map(n => <span key={n} style={s.tagRed}>{n}</span>)}
+                      {row.ausentes.length === 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}>ninguno</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
