@@ -49,6 +49,9 @@ export default function App() {
   const [hData, setHData] = useState([]);
   const [hExpand, setHExpand] = useState({});
   const [hLoading, setHLoading] = useState(false);
+  const [adminAuth, setAdminAuth] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
 
   const flash = (text, type) => { setMsg({ text, type }); setTimeout(() => setMsg(null), 3000); };
   const api = (path, opts) => fetch(API_URL + path, opts).then(r => r.json());
@@ -98,6 +101,8 @@ export default function App() {
   };
 
   const toggleExpand = (fecha) => setHExpand(prev => ({ ...prev, [fecha]: !prev[fecha] }));
+  const ADMIN_PIN = process.env.REACT_APP_ADMIN_PIN || '1234';
+  const checkPin = () => { if (pinInput === ADMIN_PIN) { setAdminAuth(true); setPinError(false); setPinInput(''); } else { setPinError(true); setPinInput(''); } };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadGrupos(); }, []);
@@ -149,10 +154,29 @@ export default function App() {
         </div>
       )}
 
-      {tab === 'admin' && (
+      {tab === 'admin' && !adminAuth && (
+        <div style={{ maxWidth: 320, margin: '60px auto', textAlign: 'center' }}>
+          <div style={s.card}>
+            <h2 style={{ ...s.h2, textAlign: 'center' }}>Acceso restringido</h2>
+            <p style={{ color: '#64748b', fontSize: 14, marginBottom: 16 }}>Ingresa el PIN de administrador</p>
+            <input
+              type='password'
+              inputMode='numeric'
+              placeholder='PIN'
+              value={pinInput}
+              onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+              onKeyDown={e => e.key === 'Enter' && checkPin()}
+              style={{ ...s.input, width: '100%', textAlign: 'center', fontSize: 22, letterSpacing: 8, marginBottom: 8 }}
+            />
+            {pinError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0 8px' }}>PIN incorrecto</p>}
+            <button style={{ ...s.btnBlue, width: '100%', padding: '10px 0' }} onClick={checkPin}>Entrar</button>
+          </div>
+        </div>
+      )}
+      {tab === 'admin' && adminAuth && (
         <div>
           <div style={s.card}>
-            <h2 style={s.h2}>Grupos</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}><h2 style={{ ...s.h2, margin: 0 }}>Grupos</h2>            <button style={{ ...s.btnGray, float: 'right', fontSize: 12, padding: '4px 10px' }} onClick={() => { setAdminAuth(false); setTab('asistencia'); }}>Cerrar sesion</button></div>
             <h3 style={s.h3}>Nuevo grupo</h3>
             <div style={s.row}>
               <div><label style={s.lbl}>Nombre</label><input style={s.input} placeholder='Grupo D - Viernes 6pm' value={fg.nombre} onChange={e => setFg({ ...fg, nombre: e.target.value })} /></div>
